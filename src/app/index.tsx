@@ -1,44 +1,167 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+// Puntuaciones posibles durante un juego
+type Puntuacion = 0 | 15 | 30 | 40 | "AD";
+
+// Pareja que gana un punto
+type Pareja = "A" | "B";
+
+// Marcador completo
+type Marcador = {
+  puntosA: Puntuacion;
+  puntosB: Puntuacion;
+  juegosA: number;
+  juegosB: number;
+};
+
+// Avanzar una puntuación normal
+function siguientePuntuacion(actual: Puntuacion): Puntuacion {
+  if (actual === 0) return 15;
+  if (actual === 15) return 30;
+  if (actual === 30) return 40;
+
+  return actual;
+}
+
+// Calcular el resultado después de ganar un punto
+function aplicarPunto(marcador: Marcador, ganador: Pareja): Marcador {
+  const { puntosA, puntosB, juegosA, juegosB } = marcador;
+
+  // La pareja A gana el punto
+  if (ganador === "A") {
+    // A tenía ventaja: gana el juego
+    if (puntosA === "AD") {
+      return {
+        puntosA: 0,
+        puntosB: 0,
+        juegosA: juegosA + 1,
+        juegosB,
+      };
+    }
+
+    // B tenía ventaja: volvemos a iguales
+    if (puntosB === "AD") {
+      return {
+        ...marcador,
+        puntosA: 40,
+        puntosB: 40,
+      };
+    }
+
+    // Ambos estaban a 40: ventaja para A
+    if (puntosA === 40 && puntosB === 40) {
+      return {
+        ...marcador,
+        puntosA: "AD",
+      };
+    }
+
+    // A estaba a 40 y B tenía menos: A gana el juego
+    if (puntosA === 40) {
+      return {
+        puntosA: 0,
+        puntosB: 0,
+        juegosA: juegosA + 1,
+        juegosB,
+      };
+    }
+
+    // Avance normal de A
+    return {
+      ...marcador,
+      puntosA: siguientePuntuacion(puntosA),
+    };
+  }
+
+  // La pareja B gana el punto
+
+  // B tenía ventaja: gana el juego
+  if (puntosB === "AD") {
+    return {
+      puntosA: 0,
+      puntosB: 0,
+      juegosA,
+      juegosB: juegosB + 1,
+    };
+  }
+
+  // A tenía ventaja: volvemos a iguales
+  if (puntosA === "AD") {
+    return {
+      ...marcador,
+      puntosA: 40,
+      puntosB: 40,
+    };
+  }
+
+  // Ambos estaban a 40: ventaja para B
+  if (puntosA === 40 && puntosB === 40) {
+    return {
+      ...marcador,
+      puntosB: "AD",
+    };
+  }
+
+  // B estaba a 40 y A tenía menos: B gana el juego
+  if (puntosB === 40) {
+    return {
+      puntosA: 0,
+      puntosB: 0,
+      juegosA,
+      juegosB: juegosB + 1,
+    };
+  }
+
+  // Avance normal de B
+  return {
+    ...marcador,
+    puntosB: siguientePuntuacion(puntosB),
+  };
+}
+
 export default function HomeScreen() {
-  // Estados del marcador
-  const [puntosA, setPuntosA] = useState(0);
-  const [puntosB, setPuntosB] = useState(0);
+  // Estado inicial del marcador
+  const [marcador, setMarcador] = useState<Marcador>({
+    puntosA: 0,
+    puntosB: 0,
+    juegosA: 0,
+    juegosB: 0,
+  });
 
-  // Guarda qué pareja ha conseguido el último punto
-  const [ultimoPunto, setUltimoPunto] = useState<"A" | "B" | null>(null);
+  // Historial para deshacer puntos
+  const [historial, setHistorial] = useState<Marcador[]>([]);
 
-  // Sumar un punto a la pareja A
-  function sumarPuntoA() {
-    setPuntosA((actual) => actual + 1);
-    setUltimoPunto("A");
+  // Registrar un punto
+  function sumarPunto(ganador: Pareja) {
+    // Guardamos el marcador anterior
+    setHistorial((actual) => [...actual, marcador]);
+
+    // Calculamos el nuevo marcador
+    setMarcador((actual) => aplicarPunto(actual, ganador));
   }
 
-  // Sumar un punto a la pareja B
-  function sumarPuntoB() {
-    setPuntosB((actual) => actual + 1);
-    setUltimoPunto("B");
-  }
-
-  // Deshacer el último punto anotado
+  // Deshacer el último punto
   function deshacerUltimoPunto() {
-    if (ultimoPunto === "A") {
-      setPuntosA((actual) => Math.max(0, actual - 1));
-    }
+    if (historial.length === 0) return;
 
-    if (ultimoPunto === "B") {
-      setPuntosB((actual) => Math.max(0, actual - 1));
-    }
+    const marcadorAnterior = historial[historial.length - 1];
 
-    setUltimoPunto(null);
+    setMarcador(marcadorAnterior);
+
+    setHistorial((actual) => actual.slice(0, -1));
   }
 
-  // Reiniciar el marcador
+  // Reiniciar el partido
   function reiniciarPartido() {
-    setPuntosA(0);
-    setPuntosB(0);
-    setUltimoPunto(null);
+    setMarcador({
+      puntosA: 0,
+      puntosB: 0,
+      juegosA: 0,
+      juegosB: 0,
+    });
+
+    setHistorial([]);
   }
 
   return (
@@ -51,15 +174,17 @@ export default function HomeScreen() {
         Controla tus partidos y descubre tus estadísticas.
       </Text>
 
-      {/* Marcador de las dos parejas */}
+      {/* Marcador de las parejas */}
       <View style={styles.scoreContainer}>
         {/* Pareja A */}
         <View style={styles.team}>
           <Text style={styles.teamName}>PAREJA A</Text>
 
-          <Text style={styles.score}>{puntosA}</Text>
+          <Text style={styles.games}>Juegos: {marcador.juegosA}</Text>
 
-          <Pressable style={styles.button} onPress={sumarPuntoA}>
+          <Text style={styles.score}>{marcador.puntosA}</Text>
+
+          <Pressable style={styles.button} onPress={() => sumarPunto("A")}>
             <Text style={styles.buttonText}>+ PUNTO</Text>
           </Pressable>
         </View>
@@ -68,9 +193,11 @@ export default function HomeScreen() {
         <View style={styles.team}>
           <Text style={styles.teamName}>PAREJA B</Text>
 
-          <Text style={styles.score}>{puntosB}</Text>
+          <Text style={styles.games}>Juegos: {marcador.juegosB}</Text>
 
-          <Pressable style={styles.button} onPress={sumarPuntoB}>
+          <Text style={styles.score}>{marcador.puntosB}</Text>
+
+          <Pressable style={styles.button} onPress={() => sumarPunto("B")}>
             <Text style={styles.buttonText}>+ PUNTO</Text>
           </Pressable>
         </View>
@@ -85,7 +212,9 @@ export default function HomeScreen() {
         <Text style={styles.secondaryButtonText}>REINICIAR PARTIDO</Text>
       </Pressable>
 
-      <Text style={styles.footer}>Próximamente: historial y estadísticas</Text>
+      <Text style={styles.footer}>
+        Próximamente: sets, historial y estadísticas
+      </Text>
     </View>
   );
 }
@@ -142,6 +271,12 @@ const styles = StyleSheet.create({
     color: "#AAB7C4",
     fontSize: 14,
     fontWeight: "bold",
+  },
+
+  games: {
+    color: "#B6E65C",
+    fontSize: 14,
+    marginTop: 12,
   },
 
   score: {
