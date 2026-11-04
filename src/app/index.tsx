@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 // ==========================================
 // 1. TIPOS Y CONFIGURACIÓN
@@ -25,27 +25,18 @@ type ResultadoSet = {
 type Marcador = {
   puntosA: Puntuacion;
   puntosB: Puntuacion;
-
   juegosA: number;
   juegosB: number;
-
   setsA: number;
   setsB: number;
-
   resultadosSets: ResultadoSet[];
-
   tieBreak: boolean;
   puntosTieBreakA: number;
   puntosTieBreakB: number;
-
   partidoTerminado: boolean;
-
-  // Cronómetros en segundos
   tiempoTotal: number;
   tiempoSet: number;
   tiempoJuego: number;
-
-  // Historial de duración de los juegos
   duracionesJuegos: number[];
 };
 
@@ -53,35 +44,26 @@ type Marcador = {
 // 2. FUNCIONES AUXILIARES
 // ==========================================
 
-// Crear marcador inicial
 function crearMarcadorInicial(): Marcador {
   return {
     puntosA: 0,
     puntosB: 0,
-
     juegosA: 0,
     juegosB: 0,
-
     setsA: 0,
     setsB: 0,
-
     resultadosSets: [],
-
     tieBreak: false,
     puntosTieBreakA: 0,
     puntosTieBreakB: 0,
-
     partidoTerminado: false,
-
     tiempoTotal: 0,
     tiempoSet: 0,
     tiempoJuego: 0,
-
     duracionesJuegos: [],
   };
 }
 
-// Formatear segundos en HH:MM:SS
 function formatearTiempo(segundos: number): string {
   const horas = Math.floor(segundos / 3600);
   const minutos = Math.floor((segundos % 3600) / 60);
@@ -92,16 +74,13 @@ function formatearTiempo(segundos: number): string {
     .join(":");
 }
 
-// Avanzar la puntuación normal
 function siguientePuntuacion(actual: Puntuacion): Puntuacion {
   if (actual === 0) return 15;
   if (actual === 15) return 30;
   if (actual === 30) return 40;
-
   return actual;
 }
 
-// Comprobar si una pareja ha ganado el set
 function setGanado(
   juegosA: number,
   juegosB: number,
@@ -122,7 +101,6 @@ function setGanado(
 // 3. GESTIÓN DE SETS
 // ==========================================
 
-// Registrar un set terminado
 function registrarSet(
   marcador: Marcador,
   ganador: Pareja,
@@ -132,12 +110,9 @@ function registrarSet(
   puntosTB?: { a: number; b: number },
 ): Marcador {
   const nuevoSetsA = marcador.setsA + (ganador === "A" ? 1 : 0);
-
   const nuevoSetsB = marcador.setsB + (ganador === "B" ? 1 : 0);
 
-  // En un mejor de 5 necesitamos 3 sets para ganar
   const setsNecesarios = Math.ceil(config.mejorDe / 2);
-
   const partidoTerminado =
     nuevoSetsA >= setsNecesarios || nuevoSetsB >= setsNecesarios;
 
@@ -151,27 +126,18 @@ function registrarSet(
 
   return {
     ...marcador,
-
     setsA: nuevoSetsA,
     setsB: nuevoSetsB,
-
     resultadosSets: [...marcador.resultadosSets, nuevoResultado],
-
-    // Reiniciar el marcador del set
     puntosA: 0,
     puntosB: 0,
     juegosA: 0,
     juegosB: 0,
-
-    // Desactivar tie-break
     tieBreak: false,
     puntosTieBreakA: 0,
     puntosTieBreakB: 0,
-
-    // Reiniciar cronómetros del set y juego
     tiempoSet: 0,
     tiempoJuego: 0,
-
     partidoTerminado,
   };
 }
@@ -186,7 +152,6 @@ function aplicarTieBreak(
   config: Configuracion,
 ): Marcador {
   const puntosA = marcador.puntosTieBreakA + (ganador === "A" ? 1 : 0);
-
   const puntosB = marcador.puntosTieBreakB + (ganador === "B" ? 1 : 0);
 
   const nuevoMarcador: Marcador = {
@@ -195,7 +160,6 @@ function aplicarTieBreak(
     puntosTieBreakB: puntosB,
   };
 
-  // Comprobar si alguien ha ganado el desempate
   const diferencia = Math.abs(puntosA - puntosB);
 
   if (puntosA >= config.puntosTieBreak && diferencia >= 2) {
@@ -232,25 +196,16 @@ function sumarJuego(
   ganador: Pareja,
   config: Configuracion,
 ): Marcador {
-  // Sumar el juego ganado
   const nuevoMarcador: Marcador = {
     ...marcador,
-
     juegosA: marcador.juegosA + (ganador === "A" ? 1 : 0),
-
     juegosB: marcador.juegosB + (ganador === "B" ? 1 : 0),
-
-    // Reiniciar los puntos del juego
     puntosA: 0,
     puntosB: 0,
-
-    // Guardar duración del juego terminado
     duracionesJuegos: [...marcador.duracionesJuegos, marcador.tiempoJuego],
-
     tiempoJuego: 0,
   };
 
-  // Comprobar si el juego ganado termina el set
   const ganadorSet = setGanado(
     nuevoMarcador.juegosA,
     nuevoMarcador.juegosB,
@@ -267,7 +222,6 @@ function sumarJuego(
     );
   }
 
-  // Comprobar si se ha llegado al empate de juegos
   if (
     nuevoMarcador.juegosA === config.juegosPorSet &&
     nuevoMarcador.juegosB === config.juegosPorSet
@@ -290,24 +244,17 @@ function aplicarPunto(
   ganador: Pareja,
   config: Configuracion,
 ): Marcador {
-  // Si estamos en tie-break, utilizamos su puntuación
   if (marcador.tieBreak) {
     return aplicarTieBreak(marcador, ganador, config);
   }
 
   const { puntosA, puntosB } = marcador;
 
-  // ----------------------------------------
-  // La pareja A gana el punto
-  // ----------------------------------------
-
   if (ganador === "A") {
-    // A tenía ventaja: gana el juego
     if (puntosA === "AD") {
       return sumarJuego(marcador, "A", config);
     }
 
-    // B tenía ventaja: volvemos a iguales
     if (puntosB === "AD") {
       return {
         ...marcador,
@@ -316,7 +263,6 @@ function aplicarPunto(
       };
     }
 
-    // Ambos estaban a 40: ventaja para A
     if (puntosA === 40 && puntosB === 40) {
       return {
         ...marcador,
@@ -324,28 +270,20 @@ function aplicarPunto(
       };
     }
 
-    // A estaba a 40: gana el juego
     if (puntosA === 40) {
       return sumarJuego(marcador, "A", config);
     }
 
-    // Avance normal de A
     return {
       ...marcador,
       puntosA: siguientePuntuacion(puntosA),
     };
   }
 
-  // ----------------------------------------
-  // La pareja B gana el punto
-  // ----------------------------------------
-
-  // B tenía ventaja: gana el juego
   if (puntosB === "AD") {
     return sumarJuego(marcador, "B", config);
   }
 
-  // A tenía ventaja: volvemos a iguales
   if (puntosA === "AD") {
     return {
       ...marcador,
@@ -354,7 +292,6 @@ function aplicarPunto(
     };
   }
 
-  // Ambos estaban a 40: ventaja para B
   if (puntosA === 40 && puntosB === 40) {
     return {
       ...marcador,
@@ -362,12 +299,10 @@ function aplicarPunto(
     };
   }
 
-  // B estaba a 40: gana el juego
   if (puntosB === 40) {
     return sumarJuego(marcador, "B", config);
   }
 
-  // Avance normal de B
   return {
     ...marcador,
     puntosB: siguientePuntuacion(puntosB),
@@ -379,27 +314,19 @@ function aplicarPunto(
 // ==========================================
 
 export default function HomeScreen() {
-  // Configuración del partido
   const [config, setConfig] = useState<Configuracion>({
     mejorDe: 5,
     juegosPorSet: 6,
     puntosTieBreak: 7,
   });
 
-  // Estado del marcador
   const [marcador, setMarcador] = useState<Marcador>(crearMarcadorInicial);
 
-  // Historial para deshacer
   const [historial, setHistorial] = useState<Marcador[]>([]);
-
-  // Estado de la partida
   const [partidoIniciado, setPartidoIniciado] = useState(false);
   const [pausado, setPausado] = useState(true);
 
-  // ----------------------------------------
   // CRONÓMETROS
-  // ----------------------------------------
-
   useEffect(() => {
     if (!partidoIniciado || pausado || marcador.partidoTerminado) {
       return;
@@ -417,10 +344,7 @@ export default function HomeScreen() {
     return () => clearInterval(intervalo);
   }, [partidoIniciado, pausado, marcador.partidoTerminado]);
 
-  // ----------------------------------------
   // INICIAR PARTIDO
-  // ----------------------------------------
-
   function iniciarPartido() {
     setMarcador(crearMarcadorInicial());
     setHistorial([]);
@@ -428,55 +352,45 @@ export default function HomeScreen() {
     setPausado(false);
   }
 
-  // ----------------------------------------
   // SUMAR PUNTO
-  // ----------------------------------------
-
   function sumarPunto(ganador: Pareja) {
     if (pausado || marcador.partidoTerminado) {
       return;
     }
 
-    // Guardar estado anterior para deshacer
     setHistorial((actual) => [...actual, marcador]);
-
-    // Aplicar el punto
     setMarcador((actual) => aplicarPunto(actual, ganador, config));
   }
 
-  // ----------------------------------------
   // DESHACER ÚLTIMO PUNTO
-  // ----------------------------------------
-
   function deshacerUltimoPunto() {
     if (historial.length === 0) {
       return;
     }
 
     const anterior = historial[historial.length - 1];
-
     setMarcador(anterior);
     setHistorial((actual) => actual.slice(0, -1));
   }
 
-  // ----------------------------------------
   // REINICIAR PARTIDO
-  // ----------------------------------------
-
   function reiniciarPartido() {
     setMarcador(crearMarcadorInicial());
     setHistorial([]);
     setPartidoIniciado(false);
     setPausado(true);
   }
-
   // ==========================================
   // 8. PANTALLA DE CONFIGURACIÓN
   // ==========================================
 
   if (!partidoIniciado) {
     return (
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator
+      >
         <Text style={styles.logo}>PADELAPP</Text>
 
         <Text style={styles.title}>Configurar partido</Text>
@@ -485,7 +399,6 @@ export default function HomeScreen() {
           Personaliza las reglas antes de jugar.
         </Text>
 
-        {/* Formato de sets */}
         <View style={styles.configCard}>
           <Text style={styles.configTitle}>FORMATO DEL PARTIDO</Text>
 
@@ -504,7 +417,14 @@ export default function HomeScreen() {
                   }))
                 }
               >
-                <Text style={styles.optionText}>{valor} sets</Text>
+                <Text
+                  style={[
+                    styles.optionText,
+                    config.mejorDe === valor && styles.optionTextSelected,
+                  ]}
+                >
+                  {valor} sets
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -514,7 +434,6 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Juegos por set */}
         <View style={styles.configCard}>
           <Text style={styles.configTitle}>JUEGOS PARA GANAR UN SET</Text>
 
@@ -533,7 +452,14 @@ export default function HomeScreen() {
                   }))
                 }
               >
-                <Text style={styles.optionText}>{valor} juegos</Text>
+                <Text
+                  style={[
+                    styles.optionText,
+                    config.juegosPorSet === valor && styles.optionTextSelected,
+                  ]}
+                >
+                  {valor} juegos
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -543,7 +469,6 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Tie-break */}
         <View style={styles.configCard}>
           <Text style={styles.configTitle}>PUNTOS DEL TIE-BREAK</Text>
 
@@ -562,7 +487,15 @@ export default function HomeScreen() {
                   }))
                 }
               >
-                <Text style={styles.optionText}>{valor} puntos</Text>
+                <Text
+                  style={[
+                    styles.optionText,
+                    config.puntosTieBreak === valor &&
+                      styles.optionTextSelected,
+                  ]}
+                >
+                  {valor} puntos
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -575,7 +508,7 @@ export default function HomeScreen() {
         <Pressable style={styles.startButton} onPress={iniciarPartido}>
           <Text style={styles.startButtonText}>COMENZAR PARTIDO</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -586,7 +519,11 @@ export default function HomeScreen() {
   const setsNecesarios = Math.ceil(config.mejorDe / 2);
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator
+    >
       <Text style={styles.logo}>PADELAPP</Text>
 
       <Text style={styles.title}>Marcador del partido</Text>
@@ -616,7 +553,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* MARCADOR TIPO TENIS */}
+      {/* RESULTADO POR SETS */}
       <View style={styles.scoreTable}>
         <Text style={styles.sectionTitle}>RESULTADO POR SETS</Text>
 
@@ -673,7 +610,6 @@ export default function HomeScreen() {
 
       {/* PUNTUACIÓN ACTUAL */}
       <View style={styles.scoreContainer}>
-        {/* Pareja A */}
         <View style={styles.team}>
           <Text style={styles.teamName}>PAREJA A</Text>
 
@@ -684,13 +620,11 @@ export default function HomeScreen() {
           {marcador.tieBreak ? (
             <>
               <Text style={styles.tieBreakTitle}>TIE-BREAK</Text>
-
               <Text style={styles.score}>{marcador.puntosTieBreakA}</Text>
             </>
           ) : (
             <>
               <Text style={styles.games}>Juegos: {marcador.juegosA}</Text>
-
               <Text style={styles.score}>{marcador.puntosA}</Text>
             </>
           )}
@@ -707,7 +641,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Pareja B */}
         <View style={styles.team}>
           <Text style={styles.teamName}>PAREJA B</Text>
 
@@ -718,13 +651,11 @@ export default function HomeScreen() {
           {marcador.tieBreak ? (
             <>
               <Text style={styles.tieBreakTitle}>TIE-BREAK</Text>
-
               <Text style={styles.score}>{marcador.puntosTieBreakB}</Text>
             </>
           ) : (
             <>
               <Text style={styles.games}>Juegos: {marcador.juegosB}</Text>
-
               <Text style={styles.score}>{marcador.puntosB}</Text>
             </>
           )}
@@ -752,7 +683,6 @@ export default function HomeScreen() {
       {marcador.partidoTerminado && (
         <View style={styles.winnerCard}>
           <Text style={styles.winnerText}>¡PARTIDO TERMINADO!</Text>
-
           <Text style={styles.winnerSubtitle}>
             {marcador.setsA > marcador.setsB
               ? "¡GANA LA PAREJA A!"
@@ -771,7 +701,6 @@ export default function HomeScreen() {
               <Text style={styles.durationText}>
                 Set {index + 1}: {set.parejaA}-{set.parejaB}
               </Text>
-
               <Text style={styles.durationText}>
                 {formatearTiempo(set.duracion)}
               </Text>
@@ -794,7 +723,6 @@ export default function HomeScreen() {
                   index +
                   1}
               </Text>
-
               <Text style={styles.durationText}>
                 {formatearTiempo(duracion)}
               </Text>
@@ -815,7 +743,10 @@ export default function HomeScreen() {
       </Pressable>
 
       <Pressable
-        style={styles.secondaryButton}
+        style={[
+          styles.secondaryButton,
+          historial.length === 0 && styles.disabledButton,
+        ]}
         disabled={historial.length === 0}
         onPress={deshacerUltimoPunto}
       >
@@ -829,21 +760,27 @@ export default function HomeScreen() {
       {pausado && !marcador.partidoTerminado && (
         <Text style={styles.statusText}>PARTIDO EN PAUSA</Text>
       )}
-    </View>
+    </ScrollView>
   );
 }
-
 // ==========================================
 // 10. ESTILOS
 // ==========================================
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: "#101820",
-    justifyContent: "center",
+  },
+
+  container: {
+    flexGrow: 1,
     alignItems: "center",
-    padding: 25,
+    justifyContent: "flex-start",
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 32,
+    width: "100%",
   },
 
   logo: {
@@ -856,7 +793,7 @@ const styles = StyleSheet.create({
 
   title: {
     color: "#FFFFFF",
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 10,
@@ -888,18 +825,23 @@ const styles = StyleSheet.create({
     color: "#AAB7C4",
     fontSize: 12,
     marginTop: 10,
+    lineHeight: 18,
   },
 
   optionsRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
+    width: "100%",
   },
 
   optionButton: {
     flex: 1,
+    minHeight: 44,
+    justifyContent: "center",
     backgroundColor: "#263744",
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 4,
     alignItems: "center",
   },
 
@@ -909,38 +851,47 @@ const styles = StyleSheet.create({
 
   optionText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  optionTextSelected: {
+    color: "#101820",
   },
 
   startButton: {
     backgroundColor: "#B6E65C",
-    padding: 17,
+    padding: 16,
+    minHeight: 50,
+    justifyContent: "center",
     borderRadius: 10,
     width: "100%",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 8,
   },
 
   startButtonText: {
     color: "#101820",
     fontWeight: "bold",
     fontSize: 15,
+    textAlign: "center",
   },
 
   timerCard: {
     backgroundColor: "#1C2B36",
     width: "100%",
-    padding: 18,
+    padding: 16,
     borderRadius: 15,
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 14,
   },
 
   timerLabel: {
     color: "#AAB7C4",
     fontSize: 11,
     fontWeight: "bold",
+    textAlign: "center",
   },
 
   timerMain: {
@@ -955,17 +906,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     width: "100%",
-    marginTop: 10,
+    marginTop: 8,
+    gap: 8,
   },
 
   timerSmall: {
+    flex: 1,
     alignItems: "center",
     gap: 5,
   },
 
   timerValue: {
     color: "#FFFFFF",
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "bold",
     fontVariant: ["tabular-nums"],
   },
@@ -973,9 +926,9 @@ const styles = StyleSheet.create({
   scoreTable: {
     backgroundColor: "#1C2B36",
     borderRadius: 12,
-    padding: 15,
+    padding: 12,
     width: "100%",
-    marginBottom: 15,
+    marginBottom: 14,
   },
 
   sectionTitle: {
@@ -996,7 +949,7 @@ const styles = StyleSheet.create({
 
   tableHeader: {
     color: "#AAB7C4",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "bold",
     flex: 1,
     textAlign: "center",
@@ -1005,14 +958,14 @@ const styles = StyleSheet.create({
   tableTeam: {
     color: "#B6E65C",
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 15,
     flex: 1,
     textAlign: "center",
   },
 
   tableNumber: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "bold",
     flex: 1,
     textAlign: "center",
@@ -1027,41 +980,44 @@ const styles = StyleSheet.create({
 
   tieBreakSmall: {
     color: "#AAB7C4",
-    fontSize: 10,
+    fontSize: 9,
   },
 
   scoreContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
-    gap: 15,
+    gap: 10,
   },
 
   team: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: "#1C2B36",
     borderRadius: 15,
-    padding: 15,
+    padding: 12,
     alignItems: "center",
   },
 
   teamName: {
     color: "#AAB7C4",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "bold",
+    textAlign: "center",
   },
 
   games: {
     color: "#B6E65C",
-    fontSize: 13,
-    marginTop: 10,
+    fontSize: 12,
+    marginTop: 9,
+    textAlign: "center",
   },
 
   score: {
     color: "#FFFFFF",
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: "bold",
-    marginVertical: 18,
+    marginVertical: 16,
     fontVariant: ["tabular-nums"],
   },
 
@@ -1075,16 +1031,19 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: "#B6E65C",
     paddingVertical: 13,
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     borderRadius: 10,
     width: "100%",
+    minHeight: 44,
+    justifyContent: "center",
     alignItems: "center",
   },
 
   buttonText: {
     color: "#101820",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "bold",
+    textAlign: "center",
   },
 
   disabledButton: {
@@ -1096,6 +1055,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 12,
     fontSize: 12,
+    textAlign: "center",
   },
 
   winnerCard: {
@@ -1113,6 +1073,7 @@ const styles = StyleSheet.create({
     color: "#B6E65C",
     fontWeight: "bold",
     fontSize: 16,
+    textAlign: "center",
   },
 
   winnerSubtitle: {
@@ -1120,6 +1081,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 14,
     marginTop: 8,
+    textAlign: "center",
   },
 
   durationCard: {
@@ -1133,6 +1095,7 @@ const styles = StyleSheet.create({
   durationRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    gap: 10,
     paddingVertical: 5,
   },
 
@@ -1144,7 +1107,9 @@ const styles = StyleSheet.create({
 
   secondaryButton: {
     backgroundColor: "#263744",
-    padding: 13,
+    padding: 14,
+    minHeight: 46,
+    justifyContent: "center",
     borderRadius: 10,
     width: "100%",
     alignItems: "center",
@@ -1155,5 +1120,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 12,
+    textAlign: "center",
   },
 });
